@@ -64,13 +64,15 @@ public class LeakyBucket {
     public boolean permissionGranted() {
         try {
             lock.lock();
-            refreshWater();
-            if (water < burst) {
-                water++;
-                return true;
-            } else {
-                return false;
-            }
+//            synchronized(this) {
+                refreshWater();
+                if (water < burst) {
+                    water++;
+                    return true;
+                } else {
+                    return false;
+                }
+//            }
         } finally {
             lock.unlock();
         }
@@ -82,19 +84,22 @@ public class LeakyBucket {
         private ConcurrentLinkedQueue<Integer> overflowsList = new ConcurrentLinkedQueue<>();
         // qps 10;
         private double tps = 2_000.0;
-        private LeakyBucket leakyBucket = new LeakyBucket(tps);
-
+        private final LeakyBucket leakyBucket = new LeakyBucket(tps);
+        private static boolean isPrint = false;
 
         public static void main(String[] args) throws ExecutionException, InterruptedException {
             Test test = new Test();
 
             // 模拟客户端 往桶里加水
-            ThreadPoolExecutor tpe = new ThreadPoolExecutor(2, 2, 60, TimeUnit.SECONDS, new ArrayBlockingQueue<>(100),
+            ThreadPoolExecutor tpe = new ThreadPoolExecutor(4, 6, 60, TimeUnit.SECONDS, new ArrayBlockingQueue<>(100),
                     Executors.defaultThreadFactory(), new ThreadPoolExecutor.CallerRunsPolicy());
 
             List<CompletableFuture<Void>> completableFutureList = new ArrayList<>();
-            int queryTotal = 10_000;
+            int queryTotal = 1_000_000;
             for(int n = 0; n < 100 ; n++) {
+                if (n % 10 == 0 || n == 99 ) {
+                    isPrint = true;
+                }
                 StopWatch stopWatch = new StopWatch();
                 stopWatch.start();
                 for (int i = 0; i < queryTotal; i++) {
@@ -110,7 +115,7 @@ public class LeakyBucket {
                 double curTps = Math.round((double) queryTotal / times * 1000);
                 double acceptSum = Math.round((double)times / 1000 * test.tps);
                 // 计算请求端的tps
-                log.info("完成处理，耗时: {}ms，当前TPS：{}，限流程序在当前时间理论接受请求数量：{}，实际接受与理论差值：{}，接收数据大小：{}，未及时响应大小：{}", times,
+                log.info("完成处理，耗时: {}ms，当前TPS：{}，理论接受请求：{}，实际接受与理论差值：{}，接收数据大小：{}，未及时响应大小：{}", times,
                         curTps,
                         acceptSum,
                         test.storeList.size() - acceptSum,
@@ -118,21 +123,38 @@ public class LeakyBucket {
                 test.storeList.clear();
                 test.overflowsList.clear();
             }
+            log.info("测试完成--------------");
         }
 
         // 服务器接收数据限流程序
         public void uploadData(int data) {
             // 模拟请求延迟
-            try {
-                Thread.sleep(1);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+//            try {
+//                Thread.sleep(1);
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
+//            timeLapse();
 
             if (leakyBucket.permissionGranted()) {
                 storeList.add(data);
             } else {
                 overflowsList.add(data);
+            }
+        }
+
+        public void timeLapse() {
+            if (isPrint) {
+                isPrint = false;
+                StopWatch stopWatch = new StopWatch();
+                stopWatch.start();
+                for (int i = 0; i < 10_000; i++) {
+                }
+                stopWatch.stop();
+                log.info(" 耗时ms:{}, 耗时nano：{}", stopWatch.getTotalTimeMillis(), stopWatch.getTotalTimeNanos());
+            } else {
+                for (int i = 0; i < 10_000; i++) {
+                }
             }
         }
     }
