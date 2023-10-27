@@ -204,6 +204,14 @@ public class TimeTableParser {
             Matcher matcher = pattern.matcher(str);
             return matcher.matches();
         }
+
+        public TimetableCellType getType() {
+            return type;
+        }
+
+        public void setType(TimetableCellType type) {
+            this.type = type;
+        }
     }
 
     public static class ClassWeekPeriod {
@@ -330,18 +338,18 @@ public class TimeTableParser {
             // 提取课表中的班级、星期、节课信息
             for(Map.Entry<String, List< IslandDivide.Dot>> entry : timeTableIsLandMap.entrySet()) {
                 String timetableNo = entry.getKey();
+                ClassWeekPeriod classCellList = new ClassWeekPeriod();
+                ClassWeekPeriod weekDayCellList = new ClassWeekPeriod();
+                ClassWeekPeriod periodCellList = new ClassWeekPeriod();
                 for (IslandDivide.Dot dot : entry.getValue()) {
                     TimetableCell timetableCell = timetableCells.get(dot.getY()).get(dot.getX());
-//                    if (Timetable.isClassName(timetableCell.getContent())) {
-//                        if (CollectionUtils.isEmpty( timetableClass )) {
-//                            timetableClass = new HashMap<>(16);
-//                            ClassWeekPeriod classWeekPeriod = new ClassWeekPeriod();
-//                        }
-//                    } else if (Timetable.isWeekDay(timetableCell.getContent()) ) {
-//
-//                    } else if (Timetable.isPeriod(timetableCell.getContent())) {
-
-//                    }
+                    if (timetableCell.type.equals(TimetableCellType.CLASSNAME )) {
+                        classCellList.getContent().add(timetableCell);
+                    } else if (timetableCell.type.equals(TimetableCellType.WEEKDAY )) {
+                        weekDayCellList.getContent().add(timetableCell);
+                    } else if (timetableCell.type.equals(TimetableCellType.PERIOD )) {
+                        periodCellList.getContent().add(timetableCell);
+                    }
                 }
             }
 
