@@ -224,6 +224,42 @@ public class TimeTableParser {
             this.direction = 0;
         }
 
+        public void configDirection() {
+            if (CollectionUtils.isEmpty(content) || content.size() == 1) {
+                direction = 0;
+            } else {
+                TimetableCell cell1 = content.get(0);
+                TimetableCell cell2 = content.get(1);
+                if (cell1.getX() == cell2.getX()) {
+                    direction = 1;
+                } else if (cell1.getY() == cell2.getY()) {
+                    direction = 2;
+                } else {
+                    direction = 0;
+                    log.error("方向不在范围内...");
+                }
+            }
+        }
+
+        public String getContent(int x, int y) {
+            if (direction == 1) {
+                for (TimetableCell timetableCell : content) {
+                    if (timetableCell.getY() == y) {
+                        return timetableCell.getContent();
+                    }
+                }
+            } else if (direction == 2) {
+                for (TimetableCell timetableCell : content) {
+                    if (timetableCell.getX() == x) {
+                        return timetableCell.getContent();
+                    }
+                }
+            } else if (!CollectionUtils.isEmpty(content)) {
+                return content.get(0).getContent();
+            }
+            return null;
+        }
+
         public List<TimetableCell> getContent() {
             return content;
         }
@@ -336,6 +372,9 @@ public class TimeTableParser {
             log.info("课程表划分数据：明细：{}", JSONObject.toJSONString(timeTableIsLandMap));
 
             // 提取课表中的班级、星期、节课信息
+            Map<String, List<IslandDivide.Dot>> tmpTimeTableIsLandMap = new HashMap<>(50);
+            boolean isCompleteTimetable = false;
+
             for(Map.Entry<String, List< IslandDivide.Dot>> entry : timeTableIsLandMap.entrySet()) {
                 String timetableNo = entry.getKey();
                 ClassWeekPeriod classCellList = new ClassWeekPeriod();
@@ -345,15 +384,34 @@ public class TimeTableParser {
                     TimetableCell timetableCell = timetableCells.get(dot.getY()).get(dot.getX());
                     if (timetableCell.type.equals(TimetableCellType.CLASSNAME )) {
                         classCellList.getContent().add(timetableCell);
+                        isCompleteTimetable = true;
                     } else if (timetableCell.type.equals(TimetableCellType.WEEKDAY )) {
                         weekDayCellList.getContent().add(timetableCell);
+                        isCompleteTimetable = true;
                     } else if (timetableCell.type.equals(TimetableCellType.PERIOD )) {
                         periodCellList.getContent().add(timetableCell);
+                        isCompleteTimetable = true;
                     }
                 }
+                if (!isCompleteTimetable) {
+                    continue;
+                }
+                tmpTimeTableIsLandMap.put(entry.getKey(), entry.getValue());
+                classCellList.configDirection();
+                timetableClass.put(timetableNo, classCellList);
+                weekDayCellList.configDirection();
+                timetableWeek.put(timetableNo, weekDayCellList);
+                periodCellList.configDirection();
+                timetablePeriod.put(timetableNo, periodCellList);
             }
+            // 过滤掉那些不带班级、星期、节课的孤岛
+            timeTableIsLandMap = tmpTimeTableIsLandMap;
 
             // 补全核心内容（课程、老师）的其他三个信息
+            // 如果是横向，他所占的所有列都在范围内（排除自身行），如果是纵向它所占的所有行都在范围内（排除自身列）
+            for(Map.Entry<String, ClassWeekPeriod> entry : timetableClass.entrySet()) {
+
+            }
 
 
             System.out.println("所有数据读取完成");
